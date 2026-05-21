@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useChat } from '@/hooks/useChat';
 import { useAuthContext } from '@/components/auth/AuthProvider';
 import { ChatSidebar } from './ChatSidebar';
@@ -11,9 +12,14 @@ import { MessageSquare, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { useLocale } from '@/hooks/useLocale';
 import { t } from '@/lib/ui-translations';
 
-export function ChatPage() {
+interface ChatPageProps {
+  conversationId?: string;
+}
+
+export function ChatPage({ conversationId: initialConversationId }: ChatPageProps) {
   const { user } = useAuthContext();
   const locale = useLocale();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const {
     conversations, activeConversationId, messages, isStreaming,
@@ -26,8 +32,22 @@ export function ChatPage() {
   useEffect(() => {
     if (!user || initialized.current) return;
     initialized.current = true;
-    loadConversations();
-  }, [user, loadConversations]);
+    loadConversations().then(() => {
+      if (initialConversationId) {
+        selectConversation(initialConversationId);
+      }
+    });
+  }, [user, loadConversations, initialConversationId, selectConversation]);
+
+  useEffect(() => {
+    if (!user) return;
+    const targetPath = activeConversationId
+      ? `/${locale}/chat/${activeConversationId}`
+      : `/${locale}/chat`;
+    if (window.location.pathname !== targetPath) {
+      router.replace(targetPath);
+    }
+  }, [activeConversationId, locale, router, user]);
 
   // Close sidebar on mobile when conversation is selected
   const handleSelectConversation = (id: string) => {
