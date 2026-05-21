@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useChat } from '@/hooks/useChat';
 import { useAuthContext } from '@/components/auth/AuthProvider';
 import { ChatSidebar } from './ChatSidebar';
@@ -19,7 +18,6 @@ interface ChatPageProps {
 export function ChatPage({ conversationId: initialConversationId }: ChatPageProps) {
   const { user } = useAuthContext();
   const locale = useLocale();
-  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const {
     conversations, activeConversationId, messages, isStreaming,
@@ -45,9 +43,9 @@ export function ChatPage({ conversationId: initialConversationId }: ChatPageProp
       ? `/${locale}/chat/${activeConversationId}`
       : `/${locale}/chat`;
     if (window.location.pathname !== targetPath) {
-      router.replace(targetPath);
+      window.history.replaceState(null, '', targetPath);
     }
-  }, [activeConversationId, locale, router, user]);
+  }, [activeConversationId, locale, user]);
 
   // Close sidebar on mobile when conversation is selected
   const handleSelectConversation = (id: string) => {
