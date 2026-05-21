@@ -9,9 +9,7 @@ export class SourceController {
   private readonly sourceRoot: string;
 
   constructor() {
-    const apiRoot = process.cwd();
-    const projectRoot = join(apiRoot, '..', '..');
-    this.sourceRoot = join(projectRoot, 'packages', 'claude-code-source', 'src');
+    this.sourceRoot = join(__dirname, '..', 'claude-code-source');
   }
 
   @Get()
