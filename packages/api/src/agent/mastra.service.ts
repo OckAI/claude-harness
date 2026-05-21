@@ -69,9 +69,10 @@ export class MastraService {
 
     // Track steps for thinking process
     const steps: { tool: string; args: any; resultPreview: string }[] = [];
+    let hasText = false;
 
     try {
-      const result = await agent.stream(messages);
+      const result = await agent.stream(messages, { maxSteps: 15 });
 
       // Read the full stream from Mastra and translate events
       for await (const chunk of result.fullStream) {
@@ -98,6 +99,7 @@ export class MastraService {
           yield toolResultEvent;
         } else if (chunk.type === 'text-delta') {
           const payload = (chunk as any).payload;
+          hasText = true;
           yield { type: 'text_delta', delta: payload.text };
         }
       }
@@ -105,6 +107,33 @@ export class MastraService {
       // Emit thinking steps summary
       if (steps.length > 0) {
         yield { type: 'steps', steps };
+      }
+
+      // Fallback: if the agent exhausted max steps without producing text,
+      // make a final LLM call to summarize what was found
+      if (!hasText && steps.length > 0) {
+        const toolSummary = steps
+          .map((s) => `[${s.tool}(${JSON.stringify(s.args)})] → ${s.resultPreview}`)
+          .join('\n');
+        const fallbackMessages = [
+          ...messages,
+          {
+            role: 'assistant' as const,
+            content: `I searched but couldn't produce a response. Here are the tool results:\n${toolSummary}`,
+          },
+          {
+            role: 'user' as const,
+            content: 'Based on the tool results above, please provide your answer to the original question. If you could not find what you were looking for, explain what you found and suggest alternatives.',
+          },
+        ];
+
+        const fallbackResult = await agent.stream(fallbackMessages);
+        for await (const chunk of fallbackResult.fullStream) {
+          if (chunk.type === 'text-delta') {
+            const payload = (chunk as any).payload;
+            yield { type: 'text_delta', delta: payload.text };
+          }
+        }
       }
 
       // Extract token usage from the stream result (AI SDK exposes inputTokens/outputTokens)
