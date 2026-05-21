@@ -15,26 +15,24 @@ interface TooltipState {
   linkBottom: number; // bottom edge of the link element
 }
 
-const codeCache = new Map<string, { code: string; error?: string }>();
+const codeCache = new Map<string, string>();
 
 async function fetchCode(filePath: string): Promise<{ code: string | null; error: string | null }> {
   const cached = codeCache.get(filePath);
-  if (cached) return { code: cached.code, error: cached.error || null };
+  if (cached !== undefined) return { code: cached, error: null };
 
   try {
     const res = await fetch(`${API_BASE}/source?file=${encodeURIComponent(filePath)}`);
     if (!res.ok) {
-      const result = { code: null, error: `File not found: ${filePath}` };
-      codeCache.set(filePath, { code: '', error: result.error });
-      return result;
+      // Don't cache errors — the file may become available after server restart
+      return { code: null, error: `File not found: ${filePath}` };
     }
     const data = await res.json();
-    codeCache.set(filePath, { code: data.code || '' });
-    return { code: data.code, error: null };
+    const code = data.code || '';
+    codeCache.set(filePath, code);
+    return { code, error: null };
   } catch {
-    const result = { code: null, error: `Failed to fetch: ${filePath}` };
-    codeCache.set(filePath, { code: '', error: result.error });
-    return result;
+    return { code: null, error: `Failed to fetch: ${filePath}` };
   }
 }
 
